@@ -8,6 +8,17 @@ var querystring = require('querystring');
 
 var authStore = require('./auth-store');
 
+function parseLinksHeader(header) {
+  var links = {};
+  header.split(/,\s*</).forEach(function(link) {
+    var parts = link.split(';');
+    var url = parts.shift().replace(/[<>]/g, '');
+    var rel = parts[0].split('"')[1];
+    links[rel] = url;
+  });
+  return links;
+}
+
 function addQueryParams(link, params) {
   var baseHash = link.split('#');
   var base = baseHash[0];
@@ -100,3 +111,4 @@ exports.augmentMosaicLinks = augmentMosaicLinks;
 exports.augmentQuadLinks = augmentQuadLinks;
 exports.augmentSceneLinks = augmentSceneLinks;
 exports.assign = assign;
+exports.parseLinksHeader = parseLinksHeader;

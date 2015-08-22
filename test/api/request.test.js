@@ -16,6 +16,13 @@ var util = require('../../api/util');
 chai.config.truncateThreshold = 0;
 var assert = chai.assert;
 
+function createResponse(status, headers) {
+  var response = new stream.Readable();
+  response.statusCode = status;
+  response.headers = headers || {};
+  return response;
+}
+
 describe('api/request', function() {
 
   var httpRequest = http.request;
@@ -63,7 +70,7 @@ describe('api/request', function() {
         port: '80',
         method: 'GET',
         path: '/',
-        headers: {accept: 'application/json'}
+        headers: {accept: 'application/json, application/octet-stream'}
       });
 
       assert.typeOf(call.args[1], 'function');
@@ -75,8 +82,7 @@ describe('api/request', function() {
     });
 
     it('resolves to an object with body and response', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = {
         foo: 'bar'
       };
@@ -98,14 +104,13 @@ describe('api/request', function() {
     });
 
     it('follows location header on 302', function(done) {
-      var firstResponse = new stream.Readable();
-      firstResponse.statusCode = 302;
-      firstResponse.headers = {
+      var firstResponse = createResponse(302, {
         location: 'https://redirect.com'
-      };
+      });
 
-      var secondResponse = new stream.Readable();
-      secondResponse.statusCode = 200;
+      var secondResponse = createResponse(200, {
+        'content-type': 'application-json'
+      });
       var body = {
         foo: 'bar'
       };
@@ -132,8 +137,7 @@ describe('api/request', function() {
     });
 
     it('resolves before parsing body if stream is true', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = {
         foo: 'bar'
       };
@@ -158,8 +162,7 @@ describe('api/request', function() {
     });
 
     it('rejects on non 2xx if stream is true', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 502;
+      var response = createResponse(502);
       var body = 'too much request';
 
       var promise = request({
@@ -184,8 +187,7 @@ describe('api/request', function() {
     });
 
     it('rejects for invalid JSON in successful response', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = 'garbage response body';
 
       var promise = request({url: 'http://example.com'});
@@ -208,8 +210,7 @@ describe('api/request', function() {
     });
 
     it('rejects with UnexpectedResponse for 500 response', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 500;
+      var response = createResponse(500);
       var body = 'server error (maybe a secret in the stack trace)';
 
       var promise = request({url: 'http://example.com'});
@@ -232,8 +233,7 @@ describe('api/request', function() {
     });
 
     it('rejects with BadRequest for 400', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 400;
+      var response = createResponse(400, {'content-type': 'application/json'});
       var body = {message: 'Invalid email or password', errors: []};
 
       var promise = request({url: 'http://example.com'});
@@ -256,8 +256,7 @@ describe('api/request', function() {
     });
 
     it('rejects with Unauthorized for 401', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 401;
+      var response = createResponse(401, {'content-type': 'application/json'});
       var body = {message: 'Invalid email or password', errors: []};
 
       var promise = request({url: 'http://example.com'});
@@ -280,8 +279,7 @@ describe('api/request', function() {
     });
 
     it('rejects with Forbidden for 403', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 403;
+      var response = createResponse(403, {'content-type': 'application/json'});
       var body = {message: 'some user info here'};
 
       var promise = request({url: 'http://example.com'});
@@ -342,8 +340,7 @@ describe('api/request', function() {
     });
 
     it('allows termination on partial response', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = 'partial body';
 
       var promise = request({
@@ -447,7 +444,7 @@ describe('api/request', function() {
     var token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhcGlfa2V5Ijoib' +
         'XktYXBpLWtleSJ9.sYcuJzdUThIsvJGNymbobOh-nY6ZKFEqXTqwZS-4QvE';
     var parseConfig = req.parseConfig;
-    var defaultHeaders = {accept: 'application/json'};
+    var defaultHeaders = {accept: 'application/json, application/octet-stream'};
 
     it('generates request options from a URL', function() {
       var config = {

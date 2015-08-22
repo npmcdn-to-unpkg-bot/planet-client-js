@@ -1,3 +1,6 @@
+var Pbf = require('pbf');
+var geobuf = require('geobuf-published');
+
 /**
  * Provides methods getting scene metadata.
  * @module planet-client/api/scenes
@@ -51,6 +54,8 @@ function get(scene, options) {
  *     resources in the response.  True by default.
  * @param {function(function())} options.terminator A function that is called
  *     with a function that can be called back to terminate the request.
+ * @param {boolean} options.geobuf Return data as a geobuf encoded protocol
+ *     buffer instead of GeoJSON.
  * @return {Promise.<module:planet-client/api/page~Page>} A promise that
  *     resolves to a page of scene metadata or is rejected with any error.
  *     See the [`errors` module](#module:planet-client/api/errors) for a list of
@@ -66,16 +71,31 @@ function search(query, options) {
     type = 'ortho';
   }
 
+  if (options.geobuf) {
+    query.format = 'geobuf';
+  }
+
   var config = {
     url: urls.join(urls.SCENES, type, ''),
     query: query,
     terminator: options.terminator
   };
   return request.get(config).then(function(res) {
-    if (options.augmentLinks !== false) {
+    // TODO: remove augmentLinks support
+    if (!options.geobuf && options.augmentLinks !== false) {
       var scenes = res.body.features;
       for (var i = 0, ii = scenes.length; i < ii; ++i) {
         util.augmentSceneLinks(scenes[i]);
+      }
+    }
+    if (options.geobuf) {
+      var headers = res.response.headers;
+      if (headers['content-type'] === 'application/json') {
+        var buffer = geobuf.encode(res.body, new Pbf());
+        buffer.links = res.body.links;
+        res.body = buffer;
+      } else {
+        res.body.links = util.parseLinksHeader(headers.links);
       }
     }
     return new Page(res.body, search);

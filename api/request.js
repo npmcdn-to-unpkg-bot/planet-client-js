@@ -18,7 +18,7 @@ var errors = require('./errors');
 var log = bole(path.basename(__filename, '.js'));
 
 var defaultHeaders = {
-  'accept': 'application/json'
+  'accept': 'application/json, application/octet-stream'
 };
 
 /**
@@ -77,6 +77,9 @@ function parseConfig(config) {
   if ('withCredentials' in config) {
     options.withCredentials = config.withCredentials;
   }
+  if (config.query && config.query.format === 'geobuf') {
+    options.responseType = 'arraybuffer';
+  }
   return options;
 }
 
@@ -134,9 +137,19 @@ function createResponseHandler(resolve, reject, info) {
       return;
     }
 
+    var binary = response.headers &&
+        response.headers['content-type'] === 'application/octet-stream';
+    if (response.setEncoding) {
+      response.setEncoding(binary ? 'binary' : 'utf8');
+    }
+
     var data = '';
     response.on('data', function(chunk) {
-      data += String(chunk);
+      if (binary) {
+        data = chunk.buffer;
+      } else {
+        data += chunk;
+      }
     });
 
     response.on('error', function(err) {
@@ -153,12 +166,16 @@ function createResponseHandler(resolve, reject, info) {
       var body = null;
       var err = null;
       if (data) {
-        try {
-          body = JSON.parse(data);
-        } catch (parseErr) {
-          err = new errors.UnexpectedResponse(
-              'Trouble parsing response body as JSON: ' + data + '\n' +
-              parseErr.stack + '\n', response, data);
+        if (binary) {
+          body = data;
+        } else {
+          try {
+            body = JSON.parse(data);
+          } catch (parseErr) {
+            err = new errors.UnexpectedResponse(
+                'Trouble parsing response body as JSON: ' + data + '\n' +
+                parseErr.stack + '\n', response, data);
+          }
         }
       }
 

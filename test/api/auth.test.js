@@ -11,6 +11,13 @@ var auth = require('../../api/auth');
 var authStore = require('../../api/auth-store');
 var errors = require('../../api/errors');
 
+function createResponse(status, headers) {
+  var response = new stream.Readable();
+  response.statusCode = status;
+  response.headers = headers || {};
+  return response;
+}
+
 describe('api/auth', function() {
 
   var httpRequest = http.request;
@@ -46,9 +53,6 @@ describe('api/auth', function() {
   describe('login()', function() {
 
     it('posts credentials to login endpoint', function() {
-      var response = new stream.Readable();
-      response.statusCode = 200;
-
       var email = 'user@email.com';
       var password = 'psswd';
       auth.login(email, password);
@@ -65,8 +69,7 @@ describe('api/auth', function() {
     });
 
     it('expects a JWT token member in the response body', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = {token: token};
 
       var email = 'user@email.com';
@@ -88,8 +91,7 @@ describe('api/auth', function() {
     });
 
     it('rejects if body does not contain a token', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = {foo: 'bar'};
 
       var email = 'user@email.com';
@@ -111,8 +113,7 @@ describe('api/auth', function() {
     });
 
     it('rejects if body contains a bogus token', function(done) {
-      var response = new stream.Readable();
-      response.statusCode = 200;
+      var response = createResponse(200, {'content-type': 'application/json'});
       var body = {token: 'bogus'};
 
       var email = 'user@email.com';
