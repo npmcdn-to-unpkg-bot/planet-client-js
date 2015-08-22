@@ -22,7 +22,7 @@
       {{#each members}}
         <tr id="{{longname}}">
           <td>
-            <code><span class="name">{{name}}</span></code>
+            <code>{{instance memberof}}.<span class="name">{{name}}</span></code>
           </td>
           <td>
             {{>type this}} <span class="description">{{md description}}</span>

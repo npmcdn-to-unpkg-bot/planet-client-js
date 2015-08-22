@@ -32,6 +32,37 @@ describe('api/page', function() {
 
   });
 
+  describe('#nextLink', function() {
+
+    it('is the URL for the next page', function() {
+      var query = {
+        foo: 'bar',
+        num: '42'
+      };
+
+      var data = {
+        links: {
+          next: url.format({
+            query: query
+          })
+        }
+      };
+
+      var page = new Page(data, spy);
+      assert.equal(page.nextLink, data.links.next);
+    });
+
+    it('is undefined if there is no next page', function() {
+      var data = {
+        links: {}
+      };
+
+      var page = new Page(data, spy);
+      assert.isUndefined(page.nextLink);
+    });
+
+  });
+
   describe('#next()', function() {
 
     it('calls the factory with a query from the next url', function() {
@@ -71,6 +102,37 @@ describe('api/page', function() {
       assert.equal(spy.callCount, 1);
       var call = spy.getCall(0);
       assert.equal(call.args[1], options);
+    });
+
+  });
+
+  describe('#prevLink', function() {
+
+    it('is the URL for the previous page', function() {
+      var query = {
+        foo: 'bar',
+        num: '42'
+      };
+
+      var data = {
+        links: {
+          prev: url.format({
+            query: query
+          })
+        }
+      };
+
+      var page = new Page(data, spy);
+      assert.equal(page.prevLink, data.links.prev);
+    });
+
+    it('is undefined if there is no previous page', function() {
+      var data = {
+        links: {}
+      };
+
+      var page = new Page(data, spy);
+      assert.isUndefined(page.prevLink);
     });
 
   });
