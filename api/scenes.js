@@ -95,7 +95,7 @@ function search(query, options) {
         buffer.links = res.body.links;
         res.body = buffer;
       } else {
-        res.body.links = util.parseLinksHeader(headers.links);
+        res.body.links = util.parseLinkHeader(headers.link);
       }
     }
     return new Page(res.body, search);

@@ -8,7 +8,7 @@ var querystring = require('querystring');
 
 var authStore = require('./auth-store');
 
-function parseLinksHeader(header) {
+function parseLinkHeader(header) {
   var links = {};
   header.split(/,\s*</).forEach(function(link) {
     var parts = link.split(';');
@@ -111,4 +111,4 @@ exports.augmentMosaicLinks = augmentMosaicLinks;
 exports.augmentQuadLinks = augmentQuadLinks;
 exports.augmentSceneLinks = augmentSceneLinks;
 exports.assign = assign;
-exports.parseLinksHeader = parseLinksHeader;
+exports.parseLinkHeader = parseLinkHeader;

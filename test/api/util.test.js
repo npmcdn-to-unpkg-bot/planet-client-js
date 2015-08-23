@@ -6,6 +6,22 @@ var util = require('../../api/util');
 
 describe('api/util', function() {
 
+  describe('parseLinkHeader()', function() {
+
+    it('generates a links object from links header', function() {
+
+      var header = '<http://example.com/>; rel="self", ' +
+          '<http://example.com/foo/>; rel="next"';
+      var links = util.parseLinkHeader(header);
+      assert.deepEqual(links, {
+        self: 'http://example.com/',
+        next: 'http://example.com/foo/'
+      });
+
+    });
+
+  });
+
   describe('addQueryParams()', function() {
 
     it('adds params from a query object', function() {
