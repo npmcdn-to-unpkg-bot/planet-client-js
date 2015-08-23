@@ -221,6 +221,62 @@ describe('api/scenes', function() {
       }).catch(done);
     });
 
+    it('passes geobuf and parses link header', function(done) {
+      request.get = function(config) {
+        return Promise.resolve({
+          body: new Buffer(10),
+          response: {
+            headers: {
+              'content-type': 'application/octet-stream',
+              'link': '<http://example.com/>; rel="next"'
+            }
+          }
+        });
+      };
+
+      var options = {
+        geobuf: true
+      };
+
+      var promise = scenes.search({}, options);
+
+      promise.then(function(got) {
+        assert.instanceOf(got, Page);
+        assert.instanceOf(got.data, Buffer);
+        assert.deepEqual(got.data.links, {next: 'http://example.com/'});
+        done();
+      }).catch(done);
+    });
+
+    it('transforms if requesting geobuf and response is json', function(done) {
+      request.get = function(config) {
+        return Promise.resolve({
+          body: {
+            features: [scene],
+            links: {foo: 'bar'}
+          },
+          response: {
+            headers: {
+              'content-type': 'application/json'
+            }
+          }
+        });
+      };
+
+      var options = {
+        geobuf: true
+      };
+
+      var promise = scenes.search({}, options);
+
+      promise.then(function(got) {
+        assert.instanceOf(got, Page);
+        assert.instanceOf(got.data, Buffer);
+        assert.deepEqual(got.data.links, {foo: 'bar'});
+        done();
+      }).catch(done);
+    });
+
     it('can be told not to augment links', function(done) {
       auth.setKey('my-key');
 

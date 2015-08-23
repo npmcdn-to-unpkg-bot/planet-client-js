@@ -90,6 +90,7 @@ function search(query, options) {
     }
     if (options.geobuf) {
       var headers = res.response.headers;
+      // TODO: remove this if server supports geobuf format
       if (headers['content-type'] === 'application/json') {
         var buffer = geobuf.encode(res.body, new Pbf());
         buffer.links = res.body.links;
