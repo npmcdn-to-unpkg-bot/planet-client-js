@@ -161,6 +161,46 @@ describe('api/request', function() {
       response.emit('end');
     });
 
+    it('provides body as a buffer for application/octet-stream', function(done) {
+      var response = createResponse(200, {'content-type': 'application/octet-stream'});
+      var body = new Buffer('8675309');
+
+      var promise = request({url: 'http://example.com'});
+      promise.then(function(obj) {
+        assert.equal(obj.response, response);
+        assert.equal(obj.body, body);
+        done();
+      }).catch(done);
+
+      assert.equal(http.request.callCount, 1);
+      var args = http.request.getCall(0).args;
+      assert.lengthOf(args, 2);
+      var callback = args[1];
+      callback(response);
+      response.emit('data', body);
+      response.emit('end');
+    });
+
+    it('provides body as a buffer for Uint8Array', function(done) {
+      var response = createResponse(200, {'content-type': 'application/octet-stream'});
+      var body = new Uint8Array([2, 3, 4]);
+
+      var promise = request({url: 'http://example.com'});
+      promise.then(function(obj) {
+        assert.equal(obj.response, response);
+        assert.instanceOf(obj.body, ArrayBuffer);
+        done();
+      }).catch(done);
+
+      assert.equal(http.request.callCount, 1);
+      var args = http.request.getCall(0).args;
+      assert.lengthOf(args, 2);
+      var callback = args[1];
+      callback(response);
+      response.emit('data', body);
+      response.emit('end');
+    });
+
     it('rejects on non 2xx if stream is true', function(done) {
       var response = createResponse(502);
       var body = 'too much request';
@@ -585,6 +625,26 @@ describe('api/request', function() {
         method: 'GET',
         path: '/page?foo=bar%20bam',
         headers: defaultHeaders
+      };
+
+      assert.deepEqual(parseConfig(config), options);
+    });
+
+    it('returns responseType: arraybuffer for geobuf format', function() {
+      var config = {
+        url: 'http://example.com/page',
+        query: {
+          format: 'geobuf'
+        }
+      };
+      var options = {
+        protocol: 'http:',
+        hostname: 'example.com',
+        port: '80',
+        method: 'GET',
+        path: '/page?format=geobuf',
+        headers: defaultHeaders,
+        responseType: 'arraybuffer'
       };
 
       assert.deepEqual(parseConfig(config), options);

@@ -146,7 +146,11 @@ function createResponseHandler(resolve, reject, info) {
     var data = '';
     response.on('data', function(chunk) {
       if (binary) {
-        data = chunk.buffer;
+        if (chunk instanceof Uint8Array) {
+          data = chunk.buffer;
+        } else {
+          data = chunk;
+        }
       } else {
         data += chunk;
       }
