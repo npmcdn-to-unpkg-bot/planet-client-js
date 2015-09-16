@@ -64,6 +64,7 @@
     "batch": "^0.5.2",
     "bistre": "^1.0.1",
     "bole": "^2.0.0",
+    "formdata": "^0.10.4",
     "jwt-claims": "^1.0.1",
     "os-homedir": "^1.0.0",
     "prompt": "^0.2.14",

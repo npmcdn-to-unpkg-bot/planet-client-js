@@ -68,6 +68,9 @@ function parseConfig(config) {
     headers['content-type'] = 'application/json';
     headers['content-length'] = JSON.stringify(config.body).length;
   }
+  if (config.formData) {
+    assign(headers, config.formData.getHeaders());
+  }
 
   if (config.withCredentials !== false) {
     var token = authStore.getToken();
@@ -237,6 +240,9 @@ function request(config) {
     var client = protocol.request(options, handler);
     if (config.body) {
       client.write(JSON.stringify(config.body));
+    }
+    if (config.formData) {
+      client.pipe(config.formData);
     }
     client.end();
 
