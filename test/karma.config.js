@@ -3,7 +3,7 @@ var pkg = require('../package.json');
 module.exports = function(karma) {
 
   karma.set({
-    frameworks: ['browserify', 'mocha'],
+    frameworks: ['browserify', 'mocha', 'sinon'],
     files: ['api/*.test.js'],
     preprocessors: {
       'api/*.test.js': ['browserify']
