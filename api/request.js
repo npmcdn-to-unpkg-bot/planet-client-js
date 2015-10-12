@@ -4,8 +4,7 @@
  * @private
  */
 
-var http = require('http');
-var https = require('https');
+var fetch = require('isomorphic-fetch');
 var path = require('path');
 var url = require('url');
 
@@ -25,10 +24,10 @@ var defaultHeaders = {
 var boundary = generateBoundary();
 
 /**
- * Generate request options provided a config object.
+ * Generate fetch options provided a config object.
  * @param {Object} config A request config.
- * @return {Promise<IncomingMessage>} A promise that resolves to a successful
- *     response.  Any non 200 status will result in a rejection.
+ * @return {Object} An object with a url and init property for use with the
+ *     fetch function.
  * @private
  */
 function parseConfig(config) {
@@ -55,25 +54,20 @@ function parseConfig(config) {
   }
   config = assign(base, config);
 
-  // TODO: fix default port handling in http-browserify
-  var defaultPort;
-  if (config.protocol && config.protocol.indexOf('https') === 0) {
-    defaultPort = '443';
-  } else {
-    defaultPort = '80';
-  }
-
   var headers = assign({}, defaultHeaders);
   for (var key in config.headers) {
     headers[key.toLowerCase()] = config.headers[key];
   }
+  var body;
   if (config.body) {
     headers['content-type'] = 'application/json';
-    headers['content-length'] = JSON.stringify(config.body).length;
+    body = JSON.stringify(config.body);
+    headers['content-length'] = body.length;
   }
   if (config.file) {
     headers['content-type'] = 'multipart/form-data; boundary=' + boundary;
-    headers['content-length'] = byteCount(toMultipartUpload(config.file));
+    body = toMultipartUpload(config.file);
+    headers['content-length'] = byteCount(body);
   }
 
   if (config.withCredentials !== false) {
@@ -87,17 +81,17 @@ function parseConfig(config) {
   }
 
   var options = {
-    protocol: config.protocol,
-    hostname: config.hostname,
-    port: config.port || defaultPort,
-    method: config.method || 'GET',
-    path: config.path,
-    headers: headers
+    url: url.format(config),
+    init: {
+      method: config.method || 'GET',
+      headers: headers,
+      mode: 'cors',
+      credentials: config.withCredentials === false ? 'omit' : 'include',
+      redirect: 'manual',
+      body: body
+    }
   };
 
-  if ('withCredentials' in config) {
-    options.withCredentials = config.withCredentials;
-  }
   return options;
 }
 
@@ -109,7 +103,7 @@ function parseConfig(config) {
  */
 function errorCheck(response, body) {
   var err = null;
-  var status = response.statusCode;
+  var status = response.status;
   if (status === 400) {
     err = new errors.BadRequest('Bad request', response, body);
   } else if (status === 401) {
@@ -121,80 +115,6 @@ function errorCheck(response, body) {
         status, response);
   }
   return err;
-}
-
-/**
- * Create a handler for JSON API responses.
- * @param {function(Object)} resolve Called on success with response and body
- *     properties.
- * @param {function(Error)} reject Called on failure.
- * @param {Object} info Request storage object with aborted and completed
- *     properties.  If info.stream is true, resolve will be called with the
- *     response stream.
- * @return {function(IncomingMessage)} A function that handles an http(s)
- *     incoming message.
- * @private
- */
-function createResponseHandler(resolve, reject, info) {
-  return function(response) {
-    var status = response.statusCode;
-    if (status === 302) {
-      log.debug('Following redirect: ', response.headers.location);
-      https.get(response.headers.location,
-          createResponseHandler(resolve, reject, info));
-      return;
-    }
-
-    if (info.stream) {
-      var streamErr = errorCheck(response, null);
-      if (streamErr) {
-        reject(streamErr);
-      } else {
-        resolve({response: response, body: null});
-      }
-      return;
-    }
-
-    var data = '';
-    response.on('data', function(chunk) {
-      data += String(chunk);
-    });
-
-    response.on('error', function(err) {
-      if (!info.aborted) {
-        reject(err);
-      }
-    });
-
-    response.on('end', function() {
-      info.completed = true;
-      if (info.aborted) {
-        return;
-      }
-      var body = null;
-      var err = null;
-      if (data) {
-        try {
-          body = JSON.parse(data);
-        } catch (parseErr) {
-          err = new errors.UnexpectedResponse(
-              'Trouble parsing response body as JSON: ' + data + '\n' +
-              parseErr.stack + '\n', response, data);
-        }
-      }
-
-      err = errorCheck(response, body) || err;
-
-      if (err) {
-        reject(err);
-      } else {
-        resolve({
-          response: response,
-          body: body
-        });
-      }
-    });
-  };
 }
 
 /**
@@ -224,52 +144,79 @@ function createResponseHandler(resolve, reject, info) {
  */
 function request(config) {
   var options = parseConfig(config);
-
-  var protocol;
-  if (options.protocol && options.protocol.indexOf('https') === 0) {
-    protocol = https;
-  } else {
-    protocol = http;
-  }
-  log.debug('request options: %j', options);
-
-  var info = {
-    aborted: false,
-    completed: false,
-    stream: config.stream
-  };
+  var reqUrl = options.url;
+  var init = options.init;
+  log.debug('%s %s %j', init.method, reqUrl, init.headers);
 
   return new Promise(function(resolve, reject) {
-    var handler = createResponseHandler(resolve, reject, info);
-    var client = protocol.request(options, handler);
-    client.on('error', function(err) {
-      reject(new errors.ClientError(err.message));
-    });
-    if (config.body) {
-      client.write(JSON.stringify(config.body));
-    }
-    if (config.file) {
-      client.write(toMultipartUpload(config.file));
-    }
-    client.end();
+    var meta = {
+      aborted: false,
+      stream: config.stream,
+      resolve: resolve,
+      reject: reject
+    };
 
     if (config.terminator) {
       config.terminator(function() {
-        if (!info.aborted && !info.completed) {
-
-          info.aborted = true;
-          if (client.abort) {
-            client.abort();
-          } else if (client.xhr && client.xhr.abort) {
-            // TODO: file a http-browserify issue for lack of abort
-            client.xhr.abort();
-          }
-
-          reject(new errors.AbortedRequest('Request aborted'));
-        }
+        meta.aborted = true;
+        reject(new errors.AbortedRequest('Request aborted'));
       });
     }
+
+    fetch(reqUrl, init)
+      .then(createResponseHandler(meta))
+      .catch(createErrorHandler(meta));
   });
+}
+
+function createResponseHandler(meta) {
+  return function(response) {
+    if (meta.aborted) {
+      return;
+    }
+
+    if (response.status === 302) {
+      log.debug('Following redirect: ' + response.headers.location);
+      fetch(response.headers.location)
+        .then(createResponseHandler(meta))
+        .catch(createErrorHandler(meta));
+      return;
+    }
+
+    if (meta.stream) {
+      var streamErr = errorCheck(response, null);
+      if (streamErr) {
+        meta.reject(streamErr);
+      } else {
+        meta.resolve({response: response, body: null});
+      }
+      return;
+    }
+
+    response.json().then(function(body) {
+      var err = errorCheck(response, body);
+      if (err) {
+        meta.reject(err);
+      } else {
+        meta.resolve({response: response, body: body});
+      }
+    }).catch(function(_) {
+      var resErr = errorCheck(response, null);
+      if (resErr) {
+        meta.reject(resErr);
+      } else {
+        meta.reject(new errors.UnexpectedResponse(
+            'Trouble parsing response body as JSON', response, null));
+      }
+    });
+  }
+}
+
+function createErrorHandler(meta) {
+  return function(err) {
+    // TODO: network error
+    meta.reject(err);
+  }
 }
 
 /**

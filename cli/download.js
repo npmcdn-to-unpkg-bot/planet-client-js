@@ -74,7 +74,7 @@ function download(productUrl, directory) {
           match = disposition.match(FILENAME_RE);
         } else {
           log.warn('Expected content-disposition header for %s: %j %d',
-              productUrl, response.headers, response.statusCode);
+              productUrl, response.headers, response.status);
         }
         var output;
         if (match) {
@@ -98,10 +98,10 @@ function download(productUrl, directory) {
         if (err instanceof errors.ResponseError) {
           if (err.body) {
             log.debug('Response error downloading %s: status %d body %s',
-                productUrl, err.response.statusCode, err.body);
+                productUrl, err.response.status, err.body);
           } else {
             log.debug('Response error downloading %s: status %d',
-                productUrl, err.response.statusCode);
+                productUrl, err.response.status);
           }
         } else {
           log.debug('Unexpected error: ', err);
