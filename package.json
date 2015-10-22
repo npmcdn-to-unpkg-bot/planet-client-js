@@ -54,7 +54,7 @@
     "metalsmith-layouts": "^1.4.1",
     "mocha": "^2.3.3",
     "nyc": "^3.2.2",
-    "readable-stream": "^2.0.2",
+    "readable-stream": "^2.0.3",
     "sinon": "^1.17.1",
     "watchy": "^0.6.5"
   },
